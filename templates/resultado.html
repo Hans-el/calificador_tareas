@@ -1,0 +1,21 @@
+{% extends "base.html" %} {% block content %} {% if error %}
+<div class="alert alert-danger text-center">
+  Ocurrió un error durante la evaluación.
+</div>
+{% else %}
+
+<div class="card shadow p-4 mx-auto" style="max-width: 600px">
+  <h4 class="text-center mb-3">Evaluación Completada</h4>
+
+  <p><strong>Resúmenes procesados:</strong> {{ total }}</p>
+  <p><strong>Promedio general:</strong> {{ promedio | round(2) }}/10</p>
+
+  <a
+    class="btn btn-success w-100 mt-3"
+    href="/descargar/{{ archivo_generado }}"
+  >
+    Descargar Resultados
+  </a>
+</div>
+
+{% endif %} {% endblock %}
