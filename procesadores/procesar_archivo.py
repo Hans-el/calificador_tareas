@@ -1,3 +1,6 @@
+# ESTE ARCHIIVO NO SE USA ACTUALMENTE, PERO SE DEJA PARA FUTURAS CORRECIONES
+
+""""
 import os
 import uuid
 import pandas as pd
@@ -84,3 +87,5 @@ def procesar_word(ruta, criterios):
     df.to_excel(ruta_salida, index=False)
 
     return {"total": 1, "promedio": r["Calificación Final"]}, nombre_archivo
+
+"""

@@ -1,28 +1,50 @@
-{% extends "base.html" %} {% block title %}Resultado de la Evaluación{% endblock
-%} {% block content %}
-
-<div class="card p-4 shadow-sm">
-  <h3 class="mb-3">Resultados de la Evaluación</h3>
+{% extends "base.html" %} {% block title %}Evaluador — Resultados{% endblock %}
+{% block content %}
+<div class="card shadow p-4 mx-auto" style="max-width: 800px">
+  <h3 class="text-center mb-4">Resultados de la Evaluación</h3>
 
   {% if error %}
-  <div class="alert alert-danger">Hubo un error procesando el archivo.</div>
-
-  <a href="/" class="btn btn-secondary">Volver</a>
-
-  {% else %}
-
-  <p><b>Archivos evaluados:</b> {{ total }}</p>
-  <p><b>Promedio final:</b> {{ promedio }}</p>
-
-  <div class="mt-4">
-    <a href="/descargar/{{ archivo_generado }}" class="btn btn-success">
-      Descargar archivo generado
-    </a>
-
-    <a href="/" class="btn btn-secondary ms-2"> Nuevo análisis </a>
+  <div class="alert alert-danger">{{ error }}</div>
+  {% else %} {% if archivo_generado %}
+  <div class="alert alert-success mb-4">
+    <p class="mb-0">La evaluación se completó con éxito.</p>
   </div>
-
-  {% endif %}
+  <div class="d-grid gap-2 mb-4">
+    <a
+      href="{{ url_for('descargar', archivo=archivo_generado) }}"
+      class="btn btn-primary"
+    >
+      Descargar Rúbrica en Excel
+    </a>
+  </div>
+  {% endif %} {% if resultado %}
+  <div class="table-responsive">
+    <h5 class="mb-3">Detalles de la Evaluación:</h5>
+    <table class="table table-bordered table-striped">
+      <thead class="table-dark">
+        <tr>
+          <th>Tarea</th>
+          <th>Calificación Final</th>
+          {% for criterio in resultado[0]['criterios'] %}
+          <th>{{ criterio['nombre'] }} (Puntaje)</th>
+          <th>{{ criterio['nombre'] }} (Justificación)</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for fila in resultado %}
+        <tr>
+          <td>{{ fila['Tarea'] }}</td>
+          <td>{{ fila['Calificación Final'] }}</td>
+          {% for criterio in fila['criterios'] %}
+          <td>{{ criterio['puntaje'] }}</td>
+          <td>{{ criterio['justificacion'] }}</td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %} {% endif %}
 </div>
-
 {% endblock %}

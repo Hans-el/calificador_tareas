@@ -1,11 +1,28 @@
+/* Estilos generales */
 body {
-    background-color: #cacbcb;
+    background-color: #f8f9fa;
 }
 
 .card {
-    border-radius: 15px;
+    border: none;
+    border-radius: 10px;
 }
 
-.navbar {
-    border-radius: 0 0 5px 5px;
+/* Estilo para los criterios */
+.criterio-item {
+    transition: all 0.3s ease;
+}
+
+.criterio-item:hover {
+    background-color: #f0f0f0;
+}
+
+/* Estilo para la tabla de resultados */
+.table th {
+    background-color: #343a40;
+    color: white;
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.02);
 }

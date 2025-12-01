@@ -1,10 +1,12 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, redirect, url_for
 import os
+from flask import send_from_directory
 from werkzeug.utils import secure_filename
-from evaluador import EvaluadorResumenes
-
-# Procesadores externos (tú ya los tienes)
-from procesadores.procesar_archivo import procesar_excel, procesar_pdf, procesar_word
+from evaluador import EvaluadorTareas  # Usamos la nueva clase
+#from procesadores.procesar_archivo import procesar_excel, procesar_pdf, procesar_word
+from procesadores.procesar_pdf import extraer_texto_pdf
+from procesadores.procesar_word import extraer_texto_word
+from procesadores.procesar_excel import extraer_texto_excel, procesar_excel
 
 # ======================================================
 # CONFIGURACIÓN
@@ -12,12 +14,11 @@ from procesadores.procesar_archivo import procesar_excel, procesar_pdf, procesar
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
 app.config["RESULTADOS_FOLDER"] = "resultados"
-
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 os.makedirs(app.config["RESULTADOS_FOLDER"], exist_ok=True)
 
-evaluador = EvaluadorResumenes()
-
+# Inicializar el evaluador de tareas
+evaluador = EvaluadorTareas()
 
 # ======================================================
 # RUTA PRINCIPAL
@@ -25,7 +26,6 @@ evaluador = EvaluadorResumenes()
 @app.route("/")
 def index():
     return render_template("index.html")
-
 
 # ======================================================
 # PROCESAR ARCHIVO / TEXTO
@@ -36,20 +36,20 @@ def procesar():
     # 1. RECIBIR CRITERIOS
     # --------------------------------------------------
     criterios_nombres = request.form.getlist("criterio_nombre")
-    criterios_notas   = request.form.getlist("criterio_peso")
+    criterios_notas = request.form.getlist("criterio_peso")
 
-    criterios = []
-    for nombre, nota in zip(criterios_nombres, criterios_notas):
-        if nombre.strip() != "":
-            criterios.append({
-                "nombre": nombre,
-                "notaMax": int(nota)
-        })
-
-    if not criterios:
+    # Validar que los criterios no estén vacíos
+    if not criterios_nombres or not criterios_notas:
         return render_template("resultado.html", error="No se recibieron criterios.")
 
+    # Crear diccionario de criterios
+    criterios_dict = {}
+    for nombre, nota in zip(criterios_nombres, criterios_notas):
+        if nombre.strip() != "":
+            criterios_dict[nombre] = float(nota)
 
+    # Actualizar la rúbrica en el evaluador
+    evaluador.actualizar_rubrica(criterios_dict)
 
     # --------------------------------------------------
     # 2. ARCHIVO O TEXTO DIRECTO
@@ -64,11 +64,14 @@ def procesar():
     # 3. EVALUAR TEXTO DIRECTO
     # --------------------------------------------------
     if texto_manual:
-        resultado = evaluador.evaluar_texto(texto_manual, criterios)
-
+        resultado = evaluador.evaluar_texto(texto_manual)
+        # Generar archivo Excel con los resultados
+        nombre_excel = f"rubrica_texto_manual.xlsx"
+        ruta_excel = os.path.join(app.config["RESULTADOS_FOLDER"], nombre_excel)
+        evaluador.generar_rubrica_excel(resultado, ruta_excel)
         return render_template("resultado.html",
                                resultado=resultado,
-                               archivo_generado=None)
+                               archivo_generado=nombre_excel)
 
     # --------------------------------------------------
     # 4. PROCESAR ARCHIVO SUBIDO
@@ -76,29 +79,43 @@ def procesar():
     nombre = secure_filename(archivo.filename)
     ruta = os.path.join(app.config["UPLOAD_FOLDER"], nombre)
     archivo.save(ruta)
-
-    extension = nombre.lower().split(".")[-1]
+    extension = nombre.lower().rsplit(".", 1)[-1]
 
     # ----- PDF -----
     if extension == "pdf":
-        texto = procesar_pdf(ruta)
-        resultado = evaluador.evaluar_texto(texto, criterios)
-        return render_template("resultado.html", resultado=resultado)
+        texto = extraer_texto_pdf(ruta)
+        resultado = evaluador.evaluar_texto(texto)
+        # Generar archivo Excel con los resultados
+        nombre_excel = f"rubrica_{nombre}.xlsx"
+        ruta_excel = os.path.join(app.config["RESULTADOS_FOLDER"], nombre_excel)
+        evaluador.generar_rubrica_excel(resultado, ruta_excel)
+        return render_template("resultado.html",
+                               resultado=resultado,
+                               archivo_generado=nombre_excel)
 
     # ----- WORD -----
     if extension == "docx":
-        texto = procesar_word(ruta)
-        resultado = evaluador.evaluar_texto(texto, criterios)
-        return render_template("resultado.html", resultado=resultado)
+        texto = extraer_texto_word(ruta)
+        resultado = evaluador.evaluar_texto(texto)
+        # Generar archivo Excel con los resultados
+        nombre_excel = f"rubrica_{nombre}.xlsx"
+        ruta_excel = os.path.join(app.config["RESULTADOS_FOLDER"], nombre_excel)
+        evaluador.generar_rubrica_excel(resultado, ruta_excel)
+        return render_template("resultado.html",
+                               resultado=resultado,
+                               archivo_generado=nombre_excel)
 
     # ----- EXCEL (múltiples resúmenes) -----
     if extension == "xlsx":
-        df_resultado, nombre_archivo = procesar_excel(ruta, criterios, evaluador, app.config["RESULTADOS_FOLDER"]) #tiene 4 parametros por recibir. OJO
-        return render_template("resultado.html",
-                               resultado=df_resultado.to_dict(orient="records"),
-                               archivo_generado=nombre_archivo)
-
-    return render_template("resultado.html", error="Formato de archivo no soportado.")
+        df_resultado, nombre_archivo = procesar_excel(ruta, criterios_dict, evaluador, 
+    app.config["RESULTADOS_FOLDER"])
+        if df_resultado.empty:
+            return render_template("resultado.html", error=f"Error al procesar el archivo Excel: {nombre_archivo}")
+    return render_template(
+        "resultado.html",
+        resultado=df_resultado.to_dict(orient="records"),
+        archivo_generado=nombre_archivo
+    )
 
 
 # ======================================================
@@ -111,6 +128,10 @@ def descargar(archivo):
         return send_file(ruta, as_attachment=True)
     return "Archivo no encontrado", 404
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 # ======================================================
 # EJECUTAR

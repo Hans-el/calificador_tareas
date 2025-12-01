@@ -1,9 +1,7 @@
 {% extends "base.html" %} {% block title %}Evaluador — Inicio{% endblock %} {%
 block content %}
-
 <div class="card shadow p-4 mx-auto" style="max-width: 700px">
-  <h3 class="text-center mb-4">Evaluación Automática de Resúmenes</h3>
-
+  <h3 class="text-center my-2 mb-5">Evaluación Automática de Tareas</h3>
   <form
     id="form-evaluacion"
     action="/procesar"
@@ -11,29 +9,33 @@ block content %}
     enctype="multipart/form-data"
   >
     <!-- ================================ -->
-    <!-- SUBIR ARCHIVO -->
+    <!-- SUBIR ARCHIVO O TEXTO MANUAL -->
     <!-- ================================ -->
     <div class="mb-3">
-      <label class="form-label fw-bold">Seleccione un archivo</label>
+      <label class="form-label fw-semibold">Seleccione un archivo</label>
       <input
         type="file"
         class="form-control"
         name="archivo"
         accept=".xlsx,.pdf,.docx"
-        required
       />
       <small class="text-muted">Formatos aceptados: Excel, PDF y Word</small>
     </div>
-
+    <div class="mb-3">
+      <label class="form-label fw-semibold">O ingrese texto manualmente</label>
+      <textarea
+        class="form-control"
+        name="texto_manual"
+        rows="4"
+        placeholder="Ingrese el texto de la tarea aquí..."
+      ></textarea>
+    </div>
     <hr />
-
     <!-- ================================ -->
     <!-- CRITERIOS -->
     <!-- ================================ -->
     <label class="fw-bold mb-2">Criterios de Evaluación</label>
-
     <div id="contenedor-criterios"></div>
-
     <button
       type="button"
       class="btn btn-warning mt-2 fw-semibold"
@@ -41,11 +43,9 @@ block content %}
     >
       Agregar criterio
     </button>
-
     <hr />
-
     <button class="btn btn-success w-100 mt-3 fw-bold" type="submit">
-      Evaluar Documento
+      Evaluar Tarea
     </button>
   </form>
 </div>
@@ -61,6 +61,8 @@ block content %}
     "Relevancia",
     "Estructura",
     "Comprensión",
+    "Originalidad",
+    "Profundidad",
   ];
 
   // =====================================
@@ -68,40 +70,53 @@ block content %}
   // =====================================
   function agregarCriterio() {
     const cont = document.getElementById("contenedor-criterios");
-
     let div = document.createElement("div");
     div.classList = "row mb-2 criterio-item";
-
     div.innerHTML = `
-      <div class="col-7">
+      <div class="col-5">
         <select name="criterio_nombre" class="form-select" required>
+          <option value="" selected disabled>Seleccione un criterio</option>
           ${criteriosDisponibles
             .map((c) => `<option value="${c}">${c}</option>`)
             .join("")}
         </select>
       </div>
-
-      <div class="col-4">
+      <div class="col-5">
         <input type="number" class="form-control" name="criterio_peso"
-               placeholder="Nota (1-9)" min="1" max="9" required>
+               placeholder="Nota máxima (1-10)" min="1" max="10" required>
       </div>
-
-      <div class="col-1 text-center">
-        <button type="button"
-                class="btn btn-danger btn-sm"
+      <div class="col-2 text-center">
+        <button type="button" class="btn btn-danger btn-sm"
                 onclick="this.parentNode.parentNode.remove();">
           X
         </button>
       </div>
     `;
-
     cont.appendChild(div);
   }
+
+  // =====================================
+  // Validar que al menos un criterio esté definido
+  // =====================================
+  document
+    .getElementById("form-evaluacion")
+    .addEventListener("submit", function (event) {
+      const criterios = document.querySelectorAll("[name='criterio_nombre']");
+      let criteriosValidos = true;
+      criterios.forEach((criterio) => {
+        if (criterio.value === null || criterio.value === "") {
+          criteriosValidos = false;
+        }
+      });
+      if (!criteriosValidos) {
+        event.preventDefault();
+        alert("Por favor, seleccione al menos un criterio válido.");
+      }
+    });
 
   // =====================================
   // Agregar un criterio al cargar la página
   // =====================================
   document.addEventListener("DOMContentLoaded", () => agregarCriterio());
 </script>
-
 {% endblock %}
